@@ -42,3 +42,12 @@ These instructions are for Unix-based targets, such as Linux distributions, macO
     Usage: redcraft [-S|--script] <binary|script> [options] [-V|--version]
     See redcraft --help or the REDCRAFT documentation for details
     ```
+
+### Conda Environment Setup
+
+To install and activate the prerequisite Python modules for this project, run:
+
+```bash
+conda env create -f environment.yml -n protein
+conda activate protein
+```

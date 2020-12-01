@@ -1,0 +1,1 @@
+MODEL_PROTEIN = "2jof"
