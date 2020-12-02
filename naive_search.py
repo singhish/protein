@@ -2,9 +2,10 @@ import argparse
 from typing import Tuple
 import numpy as np
 
-from utils import fetch_protein, mse
-from utils import calc_free_energy_score as calc_fe
 from config import MODEL_PROTEIN
+from utils import fetch_protein
+from utils import squared_distance as sq_dist
+from utils import calc_free_energy_score as calc_fe
 
 
 def parse_args() -> argparse.Namespace:
@@ -58,16 +59,16 @@ def main():
 
     curr_state = start_state
     fe_scores = np.array([calc_fe(curr_state)])
-    mse_values = np.array([mse(curr_state, goal_state)])
+    sq_dists = np.array([sq_dist(curr_state, goal_state)])
 
     for _ in range(args.n_confs_to_explore):
-        print("Current FE Score:", fe_scores[-1], "| Current MSE to goal state:", mse_values[-1])
+        print("Current FE Score:", fe_scores[-1], "| Current Squared Distance to Goal State:", sq_dists[-1])
         
         curr_state, curr_fe = naive_search_iteration(curr_state, args.n_angles_to_sample)
         fe_scores = np.append(fe_scores, curr_fe)
-        mse_values = np.append(mse_values, mse(curr_state, goal_state))
+        sq_dists = np.append(sq_dists, sq_dist(curr_state, goal_state))
         
-        np.save("naive_search_results", np.vstack((fe_scores, mse_values)))
+        np.save("naive_search_results", np.vstack((fe_scores, sq_dists)))
 
 
 if __name__ == "__main__":
