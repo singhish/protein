@@ -17,12 +17,12 @@ def parse_args() -> argparse.Namespace:
     
     parser.add_argument("--n-episodes", "-e",
         type=int,
-        default=1000,
+        default=100,
         help="Number of episodes to train agent for. (default=1000)")
     
     parser.add_argument("--n-timesteps", "-t",
         type=int,
-        default=500,
+        default=1000,
         help="Number of timesteps to run each episode for. (default=500)")
 
     parser.add_argument("--exploit-freq", "-f",
@@ -40,7 +40,7 @@ def get_next_state(state: np.ndarray, action: np.ndarray) -> np.ndarray:
     return next_state
 
 
-def ddpg(n_episodes: int, n_timesteps: int, exploit_freq: int, start_state: np.ndarray):
+def ddpg(n_episodes: int, n_timesteps: int, exploit_freq: int, goal_reward: float, start_state: np.ndarray):
     agent = DDPGAgent(start_state.shape[0], start_state.shape[0], (-180, 180))
     eps_rewards = np.array([])
 
@@ -53,6 +53,9 @@ def ddpg(n_episodes: int, n_timesteps: int, exploit_freq: int, start_state: np.n
             reward = -calc_fe(next_state)
             eps_reward += reward
 
+            if np.abs(reward - goal_reward) <= 0.001:
+                return
+
             agent.store_transition(state_dict["state"], action, reward, next_state)
             agent.learn()
 
@@ -60,7 +63,7 @@ def ddpg(n_episodes: int, n_timesteps: int, exploit_freq: int, start_state: np.n
 
         eps_rewards = np.append(eps_rewards, eps_reward)
         np.save("ddpg_results", eps_rewards)
-        print("Episode", e, "| Episodic Reward:", eps_reward)
+        print("Episode", e + 1, "- Episodic Reward:", eps_reward)
 
 
 def main():
@@ -72,7 +75,7 @@ def main():
     _, goal_state = fetch_protein(MODEL_PROTEIN)
     start_state = np.full(goal_state.flatten().shape, 180.)
 
-    ddpg(args.n_episodes, args.n_timesteps, args.exploit_freq, start_state)
+    ddpg(args.n_episodes, args.n_timesteps, args.exploit_freq, -calc_fe(goal_state), start_state)
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from copy import deepcopy
+from termcolor import colored
 
 
 ###############################
@@ -197,12 +198,17 @@ class DDPGAgent:
         
         assert action_bounds[0] < action_bounds[1]
 
-        self.actor = Actor(state_dim, action_dim, action_bounds)
-        self.actor_t = deepcopy(self.actor)
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        if torch.cuda.is_available():
+            print(colored("DDPG agent is utilizing CUDA on your", "green"),
+                  colored(torch.cuda.get_device_name(torch.cuda.current_device()), "magenta"))
+
+        self.actor = Actor(state_dim, action_dim, action_bounds).to(self.device)
+        self.actor_t = deepcopy(self.actor).to(self.device)
         self.actor_optim = torch.optim.Adam(self.actor.parameters(), lr=actor_lr)
 
-        self.critic = Critic(state_dim, action_dim)
-        self.critic_t = deepcopy(self.critic)
+        self.critic = Critic(state_dim, action_dim).to(self.device)
+        self.critic_t = deepcopy(self.critic).to(self.device)
         self.critic_optim = torch.optim.Adam(self.critic.parameters(), lr=critic_lr)
 
         self.action_lb = action_bounds[0]
@@ -212,8 +218,8 @@ class DDPGAgent:
 
         self.replay_buffer = ReplayBuffer()
     
-    def _param_update(self,
-                      tau=1e-3):
+    def _update_params(self,
+                       tau=1e-3):
 
         for param_t, param in zip(self.actor_t.parameters(), self.actor.parameters()):
             param_t.data.copy_(tau * param.data + (1 - tau) * param_t.data)
@@ -223,16 +229,17 @@ class DDPGAgent:
 
     def get_action(self, state: np.ndarray,
                    exploit=False) -> np.ndarray:
-        """`state` must be a flattened version of a phi/psi angle matrix"""
+        """`state` must be passed in as a flattened version of a phi/psi angle matrix
+            (e.g. using `state.flatten()`)"""
 
-        state = torch.from_numpy(state).float()
-        action = self.actor(state).detach().numpy()
+        state = torch.from_numpy(state).float().to(self.device)
+        action = self.actor(state)
         
         if not exploit:
             # using Gaussian noise instead of Ornstein-Uhlenbeck noise
-            action += np.random.normal(0, 1, action.shape).astype(float)
+            action += torch.empty(action.size()).normal_().to(self.device)
         
-        return action
+        return action.cpu().detach().numpy()
     
     def store_transition(self, state: np.ndarray, action: np.ndarray, reward: np.ndarray, next_state: np.ndarray):
         self.replay_buffer.append(state, action, reward, next_state)
@@ -240,10 +247,10 @@ class DDPGAgent:
     def learn(self):
         states, actions, rewards, next_states = self.replay_buffer.sample()
 
-        states = torch.from_numpy(states).float()
-        actions = torch.from_numpy(actions).float()
-        rewards = torch.from_numpy(rewards).float()
-        next_states = torch.from_numpy(next_states).float()
+        states = torch.from_numpy(states).float().to(self.device)
+        actions = torch.from_numpy(actions).float().to(self.device)
+        rewards = torch.from_numpy(rewards).float().to(self.device)
+        next_states = torch.from_numpy(next_states).float().to(self.device)
 
         # optimize critic
         next_actions = self.actor_t(next_states).detach()
@@ -262,4 +269,4 @@ class DDPGAgent:
         actor_loss.backward()
         self.actor_optim.step()
 
-        self._param_update()
+        self._update_params()
