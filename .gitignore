@@ -133,4 +133,6 @@ dmypy.json
 *.pdb
 *.txt
 *.npy
+*.jpg
+*.png
 plot.py

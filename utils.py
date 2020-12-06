@@ -63,9 +63,9 @@ def calc_free_energy_score(phi_psi_angles: np.ndarray) -> float:
     return free_energy_score
 
 
-def squared_distance(phi_psi_angles_1: np.ndarray, phi_psi_angles_2: np.ndarray) -> float:
+def squared_distance(M: np.ndarray, M_star: np.ndarray) -> float:
     # calculate squared Frobenius distance between the two phi/psi angle matrices
-    return np.linalg.norm(phi_psi_angles_1 - phi_psi_angles_2) ** 2
+    return np.linalg.norm(M - M_star) ** 2
 
 
 #####################
@@ -103,7 +103,6 @@ class ReplayBuffer:
             self.next_states.pop(0)
 
             self.current_size -= 1
-        
 
     def sample(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         idxs = np.random.choice(
